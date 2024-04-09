@@ -1,42 +1,45 @@
-import { useState, useEffect } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import { socket } from './socket';
+import { ConnectionState } from './components/ConnectionState';
+import { ConnectionManager } from './components/ConnectionManager';
+import { Events } from "./components/Events";
+import { MyForm } from './components/MyForm';
 
-import io from 'socket.io-client';
+export default function App() {
+  const [isConnected, setIsConnected] = useState(socket.connected);
+  const [messageFromServerEvents, setMessageFromServerEvents] = useState([]);
 
-function App() {
-  const [count, setCount] = useState(0)
+  useEffect(() => {
+    function onConnect() {
+      setIsConnected(true);
+    }
 
+    function onDisconnect() {
+      setIsConnected(false);
+    }
 
-  const socket = io.connect('http://localhost:3000');
+    function onMessageFromServerEvent(value) {
+      setMessageFromServerEvents(previous => [...previous, value]);
+    }
 
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('message-from-server', onMessageFromServerEvent)
 
-
-
-  // Function to handle sending a message to the server
-  const sendMessage = () => {
-    socket.emit('message', 'Hello, this is a message from the client!');
-  }
-
-  socket.on('message-from-server', function (msg) {
-    var item = document.createElement('li');
-    item.textContent = msg;
-    messages.appendChild(item);
-    window.scrollTo(0, document.body.scrollHeight);
-  });
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('message-from-server', onMessageFromServerEvent)
+    };
+  }, []);
 
   return (
-    <>
-      <h1>socket.io</h1>
-      <div className="card">
-        <button onClick={sendMessage}>
-          Send message to server
-        </button>
-        <ul id="messages"></ul>
-      </div>
-    </>
-  )
+    <div className="App">
+      <ConnectionState isConnected={isConnected} />
+      <Events events={messageFromServerEvents} />
+      <ConnectionManager />
+      <MyForm />
+      <ul id="messages"></ul>
+    </div>
+  );
 }
-
-export default App
